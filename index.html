@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Waffle City</title>
+<meta name="description" content="와플 위 작은 도시를 달리는 버터 자동차 — 실사 영상 (30초)">
+<meta name="theme-color" content="#f3ebdd">
+<meta property="og:image" content="poster.jpg">
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; }
+  body { background: #f3ebdd; }
+  video {
+    position: fixed; inset: 0;
+    width: 100%; height: 100%;
+    object-fit: contain; background: transparent;
+  }
+  #sound {
+    position: fixed; right: 20px; bottom: 20px;
+    padding: 10px 16px; border: 1px solid rgba(23,35,79,.35); border-radius: 999px;
+    background: rgba(255,255,255,.55); color: #17234f;
+    font: 500 12px/1 -apple-system, "Segoe UI", "Noto Sans KR", sans-serif;
+    letter-spacing: .12em; text-transform: uppercase;
+    cursor: pointer; backdrop-filter: blur(6px);
+    transition: opacity .4s, background .2s;
+  }
+  #sound:hover { background: rgba(255,255,255,.85); }
+  #sound:focus-visible { outline: 2px solid #17234f; outline-offset: 3px; }
+  body.idle #sound { opacity: 0; }
+</style>
+</head>
+<body>
+<video id="film" src="film.mp4" poster="poster.jpg" autoplay muted loop playsinline preload="auto"></video>
+<button id="sound" type="button" aria-pressed="false">Sound off</button>
+<script>
+  const v = document.getElementById('film');
+  const btn = document.getElementById('sound');
+
+  function render() {
+    btn.textContent = v.muted ? 'Sound off' : 'Sound on';
+    btn.setAttribute('aria-pressed', String(!v.muted));
+  }
+
+  // 소리 켠 채로 자동재생을 먼저 시도하고, 브라우저가 막으면 음소거로 재생
+  v.muted = false;
+  v.play().catch(() => { v.muted = true; v.play().catch(() => {}); }).finally(render);
+
+  btn.addEventListener('click', () => { v.muted = !v.muted; v.play().catch(() => {}); render(); });
+
+  let t;
+  function wake() {
+    document.body.classList.remove('idle');
+    clearTimeout(t);
+    t = setTimeout(() => document.body.classList.add('idle'), 2500);
+  }
+  ['mousemove', 'touchstart', 'keydown'].forEach(e => addEventListener(e, wake, { passive: true }));
+  wake();
+</script>
+</body>
+</html>
