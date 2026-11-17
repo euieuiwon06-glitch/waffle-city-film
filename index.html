@@ -9,51 +9,192 @@
 <meta property="og:image" content="poster.jpg">
 <style>
   html, body { margin: 0; height: 100%; overflow: hidden; }
-  body { background: #f3ebdd; }
-  video {
-    position: fixed; inset: 0;
-    width: 100%; height: 100%;
-    object-fit: contain; background: transparent;
+  body { background: #f3ebdd; font-family: -apple-system, "Segoe UI", "Noto Sans KR", sans-serif; }
+  #stage { position: fixed; inset: 0; }
+  video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; background: transparent; }
+
+  /* 조절 바 */
+  #bar {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    padding: 28px 16px 10px;
+    background: linear-gradient(to top, rgba(0,0,0,.72), rgba(0,0,0,.35) 60%, rgba(0,0,0,0));
+    color: #fff; transition: opacity .35s;
   }
-  #sound {
-    position: fixed; right: 20px; bottom: 20px;
-    padding: 10px 16px; border: 1px solid rgba(23,35,79,.35); border-radius: 999px;
-    background: rgba(255,255,255,.55); color: #17234f;
-    font: 500 12px/1 -apple-system, "Segoe UI", "Noto Sans KR", sans-serif;
-    letter-spacing: .12em; text-transform: uppercase;
-    cursor: pointer; backdrop-filter: blur(6px);
-    transition: opacity .4s, background .2s;
+  body.idle #bar { opacity: 0; }
+  body.idle { cursor: none; }
+
+  #seek { position: relative; height: 16px; display: flex; align-items: center; cursor: pointer; touch-action: none; }
+  #track { position: relative; width: 100%; height: 4px; background: rgba(255,255,255,.28); border-radius: 2px; transition: height .15s; }
+  #seek:hover #track, #seek.drag #track { height: 6px; }
+  #buffered { position: absolute; inset: 0 auto 0 0; width: 0; background: rgba(255,255,255,.45); border-radius: 2px; }
+  #played { position: absolute; inset: 0 auto 0 0; width: 0; background: #ff1f4b; border-radius: 2px; }
+  #knob {
+    position: absolute; top: 50%; left: 0; width: 14px; height: 14px; margin: -7px 0 0 -7px;
+    border-radius: 50%; background: #ff1f4b; transform: scale(0); transition: transform .15s;
   }
-  #sound:hover { background: rgba(255,255,255,.85); }
-  #sound:focus-visible { outline: 2px solid #17234f; outline-offset: 3px; }
-  body.idle #sound { opacity: 0; }
+  #seek:hover #knob, #seek.drag #knob { transform: scale(1); }
+  #tip {
+    position: absolute; bottom: 22px; transform: translateX(-50%);
+    padding: 3px 7px; border-radius: 4px; background: rgba(0,0,0,.75);
+    font-size: 12px; font-variant-numeric: tabular-nums; pointer-events: none; opacity: 0; transition: opacity .15s;
+  }
+  #seek:hover #tip, #seek.drag #tip { opacity: 1; }
+
+  #row { display: flex; align-items: center; gap: 6px; margin-top: 6px; }
+  .btn {
+    width: 40px; height: 40px; display: grid; place-items: center;
+    border: 0; padding: 0; background: none; color: #fff; cursor: pointer; border-radius: 8px;
+  }
+  .btn:hover { background: rgba(255,255,255,.12); }
+  .btn:focus-visible { outline: 2px solid #fff; outline-offset: 1px; }
+  .btn svg { width: 26px; height: 26px; fill: currentColor; }
+
+  #vol { display: flex; align-items: center; }
+  #volRange {
+    width: 0; min-width: 0; padding: 0; border: 0; opacity: 0; margin: 0; transition: width .2s, opacity .2s, margin .2s;
+    accent-color: #fff; cursor: pointer;
+  }
+  #vol:hover #volRange, #vol:focus-within #volRange { width: 72px; opacity: 1; margin: 0 8px 0 2px; }
+
+  #time { font-size: 14px; font-variant-numeric: tabular-nums; margin-left: 8px; white-space: nowrap; }
+  #time .dim { opacity: .75; }
+  .spacer { flex: 1; }
+
+  /* 반복 스위치 */
+  #loop { display: flex; align-items: center; gap: 8px; font-size: 12px; opacity: .9; padding: 0 8px; height: 40px; width: auto; flex: none; }
+  #loop .sw { flex: none; }
+  #row > * { flex-shrink: 0; }
+  #row > .spacer { flex: 1 1 0; min-width: 0; }
+  #loop .sw { width: 34px; height: 18px; border-radius: 9px; background: rgba(255,255,255,.3); position: relative; transition: background .2s; }
+  #loop .sw::after { content: ""; position: absolute; top: 2px; left: 2px; width: 14px; height: 14px; border-radius: 50%; background: #fff; transition: transform .2s; }
+  #loop[aria-pressed="true"] .sw { background: #ff1f4b; }
+  #loop[aria-pressed="true"] .sw::after { transform: translateX(16px); }
+
+  @media (max-width: 480px) {
+    #bar { padding: 24px 10px 8px; }
+    .btn { width: 36px; height: 36px; }
+    #loop span.lbl { display: none; }
+    #volRange { display: none; }
+    #row { gap: 2px; }
+  }
 </style>
 </head>
 <body>
-<video id="film" src="film.mp4" poster="poster.jpg" autoplay muted loop playsinline preload="auto"></video>
-<button id="sound" type="button" aria-pressed="false">Sound off</button>
+<div id="stage">
+  <video id="film" src="film.mp4" poster="poster.jpg" autoplay muted loop playsinline preload="auto"></video>
+
+  <div id="bar">
+    <div id="seek" role="slider" aria-label="재생 위치" aria-valuemin="0" aria-valuemax="30" aria-valuenow="0" tabindex="0">
+      <div id="track"><div id="buffered"></div><div id="played"></div><div id="knob"></div></div>
+      <div id="tip">0:00</div>
+    </div>
+    <div id="row">
+      <button class="btn" id="play" type="button" aria-label="일시정지">
+        <svg viewBox="0 0 24 24" id="icPlay"><path d="M7 4.5v15l12.5-7.5z"/></svg>
+        <svg viewBox="0 0 24 24" id="icPause" style="display:none"><path d="M6.5 4.5h4v15h-4zM13.5 4.5h4v15h-4z"/></svg>
+      </button>
+      <div id="vol">
+        <button class="btn" id="mute" type="button" aria-label="소리 켜기">
+          <svg viewBox="0 0 24 24" id="icVol"><path d="M3 9.5v5h4l5 4.5v-14l-5 4.5zM15.5 8.2a5 5 0 0 1 0 7.6l-1.1-1.2a3.4 3.4 0 0 0 0-5.2zM17.8 5.7a8.4 8.4 0 0 1 0 12.6l-1.1-1.2a6.8 6.8 0 0 0 0-10.2z"/></svg>
+          <svg viewBox="0 0 24 24" id="icMute" style="display:none"><path d="M3 9.5v5h4l5 4.5v-14l-5 4.5zM15.3 9.4l1.1-1.1 2.3 2.3 2.3-2.3 1.1 1.1-2.3 2.3 2.3 2.3-1.1 1.1-2.3-2.3-2.3 2.3-1.1-1.1 2.3-2.3z"/></svg>
+        </button>
+        <input id="volRange" type="range" min="0" max="1" step="0.02" value="1" aria-label="음량">
+      </div>
+      <div id="time"><span id="cur">0:00</span> <span class="dim">/ <span id="dur">0:30</span></span></div>
+      <div class="spacer"></div>
+      <button class="btn" id="loop" type="button" aria-pressed="true" aria-label="반복 재생"><span class="sw"></span><span class="lbl">반복</span></button>
+      <button class="btn" id="fs" type="button" aria-label="전체화면">
+        <svg viewBox="0 0 24 24" id="icFs"><path d="M4 9V4h5v2H6v3zM15 4h5v5h-2V6h-3zM18 15h2v5h-5v-2h3zM4 15h2v3h3v2H4z"/></svg>
+        <svg viewBox="0 0 24 24" id="icFsx" style="display:none"><path d="M7 4h2v5H4V7h3zM15 4h2v3h3v2h-5zM15 15h5v2h-3v3h-2zM4 15h5v5H7v-3H4z"/></svg>
+      </button>
+    </div>
+  </div>
+</div>
 <script>
   const v = document.getElementById('film');
-  const btn = document.getElementById('sound');
+  const $ = id => document.getElementById(id);
+  const seek = $('seek'), played = $('played'), knob = $('knob'), buffered = $('buffered'), tip = $('tip');
+  const fmt = s => { s = Math.max(0, Math.floor(s || 0)); return Math.floor(s / 60) + ':' + String(s % 60).padStart(2, '0'); };
 
-  function render() {
-    btn.textContent = v.muted ? 'Sound off' : 'Sound on';
-    btn.setAttribute('aria-pressed', String(!v.muted));
+  function renderPlay() {
+    $('icPlay').style.display = v.paused ? '' : 'none';
+    $('icPause').style.display = v.paused ? 'none' : '';
+    $('play').setAttribute('aria-label', v.paused ? '재생' : '일시정지');
+  }
+  function renderVol() {
+    const m = v.muted || v.volume === 0;
+    $('icVol').style.display = m ? 'none' : '';
+    $('icMute').style.display = m ? '' : 'none';
+    $('mute').setAttribute('aria-label', m ? '소리 켜기' : '음소거');
+    $('volRange').value = v.muted ? 0 : v.volume;
+  }
+  function renderTime() {
+    const d = v.duration || 30, p = (v.currentTime / d) * 100;
+    played.style.width = p + '%'; knob.style.left = p + '%';
+    $('cur').textContent = fmt(v.currentTime); $('dur').textContent = fmt(d);
+    seek.setAttribute('aria-valuenow', Math.round(v.currentTime)); seek.setAttribute('aria-valuemax', Math.round(d));
+    if (v.buffered.length) buffered.style.width = (v.buffered.end(v.buffered.length - 1) / d) * 100 + '%';
   }
 
-  // 소리 켠 채로 자동재생을 먼저 시도하고, 브라우저가 막으면 음소거로 재생
+  // 소리 켠 채 자동재생 시도 → 막히면 음소거 재생
   v.muted = false;
-  v.play().catch(() => { v.muted = true; v.play().catch(() => {}); }).finally(render);
+  v.play().catch(() => { v.muted = true; v.play().catch(() => {}); }).finally(() => { renderPlay(); renderVol(); });
 
-  btn.addEventListener('click', () => { v.muted = !v.muted; v.play().catch(() => {}); render(); });
+  v.addEventListener('play', renderPlay); v.addEventListener('pause', renderPlay);
+  v.addEventListener('timeupdate', renderTime); v.addEventListener('loadedmetadata', renderTime); v.addEventListener('progress', renderTime);
+  v.addEventListener('volumechange', renderVol);
 
+  const toggle = () => { v.paused ? v.play() : v.pause(); };
+  $('play').addEventListener('click', toggle);
+  v.addEventListener('click', toggle);
+
+  $('mute').addEventListener('click', () => { if (v.muted || v.volume === 0) { v.muted = false; if (v.volume === 0) v.volume = 1; } else v.muted = true; });
+  $('volRange').addEventListener('input', e => { v.volume = +e.target.value; v.muted = v.volume === 0; });
+
+  // 위치 이동 (클릭·드래그·터치)
+  const ratio = e => { const r = seek.getBoundingClientRect(); return Math.min(1, Math.max(0, (e.clientX - r.left) / r.width)); };
+  let dragging = false;
+  seek.addEventListener('pointerdown', e => { dragging = true; seek.classList.add('drag'); seek.setPointerCapture(e.pointerId); v.currentTime = ratio(e) * (v.duration || 30); });
+  seek.addEventListener('pointermove', e => {
+    const x = ratio(e); tip.style.left = x * 100 + '%'; tip.textContent = fmt(x * (v.duration || 30));
+    if (dragging) v.currentTime = x * (v.duration || 30);
+  });
+  const end = () => { dragging = false; seek.classList.remove('drag'); };
+  seek.addEventListener('pointerup', end); seek.addEventListener('pointercancel', end);
+  seek.addEventListener('keydown', e => {
+    if (e.key === 'ArrowRight') v.currentTime = Math.min(v.duration, v.currentTime + 2);
+    if (e.key === 'ArrowLeft') v.currentTime = Math.max(0, v.currentTime - 2);
+  });
+
+  $('loop').addEventListener('click', () => { v.loop = !v.loop; $('loop').setAttribute('aria-pressed', String(v.loop)); });
+
+  const stage = document.getElementById('stage');
+  $('fs').addEventListener('click', () => {
+    if (document.fullscreenElement) document.exitFullscreen();
+    else if (stage.requestFullscreen) stage.requestFullscreen();
+    else if (v.webkitEnterFullscreen) v.webkitEnterFullscreen();
+  });
+  document.addEventListener('fullscreenchange', () => {
+    const f = !!document.fullscreenElement;
+    $('icFs').style.display = f ? 'none' : ''; $('icFsx').style.display = f ? '' : 'none';
+  });
+
+  // 키보드: 스페이스 재생/정지, M 음소거, F 전체화면
+  addEventListener('keydown', e => {
+    if (e.target.tagName === 'INPUT') return;
+    if (e.code === 'Space') { e.preventDefault(); toggle(); }
+    if (e.key === 'm' || e.key === 'M') $('mute').click();
+    if (e.key === 'f' || e.key === 'F') $('fs').click();
+  });
+
+  // 가만히 있으면 조절 바 숨김 (정지 중엔 계속 보임)
   let t;
   function wake() {
-    document.body.classList.remove('idle');
-    clearTimeout(t);
-    t = setTimeout(() => document.body.classList.add('idle'), 2500);
+    document.body.classList.remove('idle'); clearTimeout(t);
+    t = setTimeout(() => { if (!v.paused && !dragging) document.body.classList.add('idle'); }, 2500);
   }
-  ['mousemove', 'touchstart', 'keydown'].forEach(e => addEventListener(e, wake, { passive: true }));
+  ['mousemove', 'touchstart', 'keydown', 'pointerdown'].forEach(e => addEventListener(e, wake, { passive: true }));
+  v.addEventListener('pause', wake);
   wake();
 </script>
 </body>
