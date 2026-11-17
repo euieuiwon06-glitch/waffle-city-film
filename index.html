@@ -24,8 +24,8 @@
   body.idle { cursor: none; }
 
   #seek { position: relative; height: 16px; display: flex; align-items: center; cursor: pointer; touch-action: none; }
-  #track { position: relative; width: 100%; height: 4px; background: rgba(255,255,255,.28); border-radius: 2px; transition: height .15s; }
-  #seek:hover #track, #seek.drag #track { height: 6px; }
+  #track { position: relative; width: 100%; height: 6px; background: rgba(255,255,255,.28); border-radius: 3px; transform: scaleY(.667); transition: transform .15s; }
+  #seek:hover #track, #seek.drag #track { transform: scaleY(1); }
   #buffered { position: absolute; inset: 0 auto 0 0; width: 0; background: rgba(255,255,255,.45); border-radius: 2px; }
   #played { position: absolute; inset: 0 auto 0 0; width: 0; background: #ff1f4b; border-radius: 2px; }
   #knob {
@@ -51,7 +51,7 @@
 
   #vol { display: flex; align-items: center; }
   #volRange {
-    width: 0; min-width: 0; padding: 0; border: 0; opacity: 0; margin: 0; transition: width .2s, opacity .2s, margin .2s;
+    width: 0; min-width: 0; padding: 0; border: 0; opacity: 0; margin: 0; transition: opacity .2s;
     accent-color: #fff; cursor: pointer;
   }
   #vol:hover #volRange, #vol:focus-within #volRange { width: 72px; opacity: 1; margin: 0 8px 0 2px; }
